@@ -1,0 +1,165 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: webstack-pv
+  namespace: kube-ops
+  labels:
+    pv: webstack-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  nfs:
+    path: /gpfs/vmfs/nfs/k8s/ops-data/webstack/
+    server: 172.16.52.200
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: webstack-pvc
+  namespace: kube-ops
+spec:
+  selector:
+    matchLabels:
+      pv: webstack-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1G
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webstack
+  namespace: kube-ops
+  labels:
+    app: webstack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webstack
+  template:
+    metadata:
+      labels:
+        app: webstack
+    spec:
+      containers:
+      - name: webstack
+        image: "harbor.cechealth.cn/tools/webstack:latest"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+      #  command: ["/entrypoint.sh", "new-server"]
+        env:
+        - name: DB_CONNECTION
+          value: "mysql"    # 连接的数据库类型
+        - name: DB_HOST
+          value: "172.16.56.137"        #mysql 数据库地址
+        - name: DB_DATABASE
+          value: "webstack"           #mysql 数据库名称
+        - name: DB_USERNAME
+          value: "webstack"             #mysql数据库登录用户名
+        - name: DB_PASSWORD
+          value: "Webstack@2020"        #mysql 数据库登录密码
+        - name: REDIS_HOST
+          value: "172.16.56.137"        #redis连接地址
+        - name: REDIS_PASSWORD
+          value: "Webstack@2020"        #redis连接密码
+        - name: REDIS_PORT
+          value: "6379"        #redis端口
+        - name: APP_URL
+          value: "http://daohang.cechealth.cn"      #webstack访问地址
+        - name: APP_NAME
+          value: "Webstack"
+        - name: APP_ENV
+          value: "local"
+        - name: APP_DEBUG
+          value: "false"
+        - name: APP_LOG_LEVEL
+          value: "debug"
+        - name: BROADCAST_DRIVER
+          value: "log"
+        - name: CACHE_DRIVER
+          value: "redis"
+        - name:  SESSION_DRIVER
+          value: "redis"
+        - name: SESSION_LIFETIME
+          value: "120"
+        - name:  QUEUE_DRIVER
+          value: "sync"
+        - name: MAIL_DRIVER
+          value: "smtp"
+        - name: MAIL_HOST
+          value: "smtp.mailtrap.io"
+        - name: MAIL_PORT
+          value: "25"
+        - name: MAIL_USERNAME
+          value: "null"
+        - name: MAIL_PASSWORD
+          value: "null"
+        - name: MAIL_ENCRYPTION
+          value: "null"
+        - name: PUSHER_APP_ID
+          value: ""
+        - name: PUSHER_APP_KEY
+          value: ""
+        - name: PUSHER_APP_SECRET
+          value: ""
+        - name: PUSHER_APP_CLUSTER
+          value: "mt1"
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 2048Mi
+          requests:
+            cpu: 1000m
+            memory: 1024Mi
+        volumeMounts:
+        - mountPath: /opt/navi
+          name: webstack
+          subPath: navi
+      volumes:
+      - name: webstack
+        persistentVolumeClaim:
+          claimName: webstack-pvc    #绑定上面创建的 PVC
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webstack
+  namespace: kube-ops
+spec:
+  #type: NodePort
+  #ports:
+  #  - name: sonar-http
+  #    port: 9000
+  #    nodePort: 39000
+  #selector:
+  #  app: sonarqube
+  ports:
+    - name: webstack-http
+      port: 8000
+      targetPort: 8000
+  selector:
+    app: webstack
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: webstack
+  namespace: kube-ops
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+  - host: daohang.cechealth.cn
+    http:
+      paths:
+      - backend:
+          serviceName: webstack
+          servicePort: 8000
