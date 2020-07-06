@@ -48,7 +48,7 @@ spec:
     spec:
       containers:
       - name: webstack
-        image: "harbor.cechealth.cn/tools/webstack:latest"
+        image: "harbor.example.cn/tools/webstack:latest"
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
@@ -71,7 +71,7 @@ spec:
         - name: REDIS_PORT
           value: "6379"        #redis端口
         - name: APP_URL
-          value: "http://daohang.cechealth.cn"      #webstack访问地址
+          value: "http://daohang.example.cn"      #webstack访问地址
         - name: APP_NAME
           value: "Webstack"
         - name: APP_ENV
@@ -157,7 +157,7 @@ metadata:
     kubernetes.io/ingress.class: nginx
 spec:
   rules:
-  - host: daohang.cechealth.cn
+  - host: daohang.example.cn
     http:
       paths:
       - backend:
